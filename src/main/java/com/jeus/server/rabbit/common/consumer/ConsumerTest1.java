@@ -85,9 +85,9 @@ public class ConsumerTest1 extends RabbitConsumer implements ShutdownAware {
                 return;
             }
             String msg = new String(bytes, "UTF-8");
-            System.out.println(">>CONSUME " + msg);
             if (msg.equals("STOP")) {
-                System.out.println("CLOSING <==========================");
+                System.out.println("====================STOPING====================");
+                System.out.println("====================STOPING====================");
                 stop();
             }
         } catch (UnsupportedEncodingException ex) {
@@ -100,6 +100,7 @@ public class ConsumerTest1 extends RabbitConsumer implements ShutdownAware {
         super.stop();
         shutdown = true;
         final long shutdownWaitStartTime = System.currentTimeMillis();
+        System.out.println(">>>SHUTDOWN");
         //TODO: shutdown have to implement.
 //        wsExecutorService.shutdown();
 //        while ((System.currentTimeMillis() - shutdownWaitStartTime < (90 * 1000)) && !wsExecutorService.isTerminated()) {

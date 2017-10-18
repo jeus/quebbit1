@@ -19,28 +19,21 @@ public class Runner {
     public static void main(String[] arg) {
 
         try {
-            
-            
-            //This producer. 
+            //This producer.
             RabbitConfig config = new RabbitConfig("TestQueue", "guest", "guest");
             Thread tProducer = new Thread(new ProducerTest1(config));
             tProducer.start();
-            
-            
-            Thread.sleep(5000);
-            
-
-            //Start Consumer. 
+            Thread.sleep(3000);
+            //Start Consumer.
             RabbitProducer producer2 = new RabbitProducer(config);
             ConsumerTest1 a = new ConsumerTest1(config, 0, producer2, 0, 23);
             Thread tConsumer = new Thread(a);
             tConsumer.start();
-            Thread.sleep(10000);
-
-//es.shutdownNow();
+            //Thread.sleep(10000);
+            //es.shutdownNow();
             System.out.println("S T O P I N G");
         } catch (InterruptedException ex) {
-            System.out.println("EEEEEEEEEEEEEEEEEEEEEEEEEEX" + ex);
+            Logger.getLogger(Runner.class.getName()).log(Level.SEVERE, null, ex);
         }
 
     }

@@ -28,11 +28,23 @@ public class ProducerTest1 implements Runnable {
 
     @Override
     public void run() {
-        for (int i = 0; i < 1000000; i++) {
-            String msg = "**** " + i + " ****";
+        int pro = 100;
+        for (int i = 0; i < pro; i++) {
+            String msg = "*" + i + "*";
             byte[] bytes = msg.getBytes(Charset.forName("UTF-8"));
             producer.submit(bytes);
             System.out.println(">>PRODUCE " + msg);
+        }
+        String msg = "STOP";
+        byte[] bytes = msg.getBytes(Charset.forName("UTF-8"));
+        producer.submit(bytes);
+        System.out.println(">>PRODUCE %%%%%%%%%%%%%%%%%%%%%%%%%%%%" + msg + "%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+
+        for (int i = 0; i < pro+1000; i++) {
+            String msg1 = "*" + i + "*";
+            byte[] bytes1 = msg1.getBytes(Charset.forName("UTF-8"));
+            producer.submit(bytes1);
+            System.out.println(">>PRODUCE " + msg1);
         }
         System.out.println(">>STOP PRODUCER");
     }

@@ -30,7 +30,7 @@ public abstract class RabbitDao {
     int port = 5672;
     String username = "guest";
     String password = "guest";
-    int rabbitQOS = 40;
+    int rabbitQOS = 1;
 
     public RabbitDao(RabbitConfig rabbitConfig) {
         this.endPointName = rabbitConfig.getEndPointName();
@@ -77,7 +77,7 @@ public abstract class RabbitDao {
 
         try {
             channel.queueDeclare(this.endPointName, true, false, false, args);
-            channel.basicQos(50);
+            channel.basicQos(rabbitQOS,false);
 
         } catch (IOException e) {
             System.out.println(">>GETEXCEPTION " + e.getMessage());
