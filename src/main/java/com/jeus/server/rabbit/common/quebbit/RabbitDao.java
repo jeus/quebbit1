@@ -77,15 +77,13 @@ public abstract class RabbitDao {
 
         try {
             channel.queueDeclare(this.endPointName, true, false, false, args);
-            channel.basicQos(rabbitQOS,false);
+            channel.basicQos(rabbitQOS, false);
 
         } catch (IOException e) {
             System.out.println(">>GETEXCEPTION " + e.getMessage());
         }
     }
 
- 
-    
     /**
      * Close channel and connection. Not necessary as it happens implicitly any
      * way.

@@ -8,14 +8,7 @@ package com.jeus.server.rabbit.common.producer;
 import com.jeus.server.rabbit.common.quebbit.RabbitConfig;
 import com.jeus.server.rabbit.common.quebbit.RabbitProducer;
 import java.nio.charset.Charset;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.apache.commons.lang.SerializationUtils;
 
-/**
- *
- * @author jeus
- */
 public class ProducerTest1 implements Runnable {
 
     final RabbitConfig config;
@@ -40,7 +33,7 @@ public class ProducerTest1 implements Runnable {
         producer.submit(bytes);
         System.out.println(">>PRODUCE %%%%%%%%%%%%%%%%%%%%%%%%%%%%" + msg + "%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
 
-        for (int i = 0; i < pro+1000; i++) {
+        for (int i = 0; i < pro; i++) {
             String msg1 = "*" + i + "*";
             byte[] bytes1 = msg1.getBytes(Charset.forName("UTF-8"));
             producer.submit(bytes1);

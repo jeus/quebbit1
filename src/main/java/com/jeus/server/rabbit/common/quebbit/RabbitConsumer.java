@@ -3,14 +3,12 @@ package com.jeus.server.rabbit.common.quebbit;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import org.apache.log4j.Logger;
@@ -24,6 +22,7 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
     volatile boolean stopped = false;
     protected volatile boolean doConsume = true;
     volatile int startTime;
+    volatile long deliveryTag;
     volatile int endTime;
     volatile String consumerTag;
     RabbitConsumer consumer;
@@ -65,40 +64,13 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
                 //TODO: have to returtn if command
 //                for (int consumerId = 0; consumerId < _consumersPerThread.get(); ++consumerId) {
                 System.out.println("-----------------------------> PER THREAD" + _consumersPerThread.get());
-                consumerTag = channel.basicConsume(endPointName, true, this);
+                consumerTag = channel.basicConsume(endPointName, false, this);
                 LOGGER.info(">>>>>>>>>" + consumerTag + "<<<<<<<<<");
 //                }
             } catch (IOException e) {
                 LOGGER.error("RabbitConsumer Problem[endpoint=" + endPointName + "] : " + e.getMessage());
             }
-        } else {
-//            return;
-            try {
-                QueueingConsumer consumer = new QueueingConsumer(channel);
-                channel.basicConsume(endPointName, false, consumer);
-                for (int counter = 0; counter < batchSize; counter++) {
-                    QueueingConsumer.Delivery delivery = consumer.nextDelivery(1);
-                    if (delivery == null) {
-                        break;
-                    }
-                    channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-                    LOGGER.info(new String(delivery.getBody(), "UTF-8"));
-                    messages.add(new String(delivery.getBody(), "UTF-8"));
-                }
-                consume(messages);
-
-            } catch (IOException e) {
-                LOGGER.error(
-                        "RabbitConsumer Batch Problem[endpoint=" + endPointName + "] : " + e.getMessage());
-            } catch (InterruptedException e) {
-                LOGGER.error(
-                        "RabbitConsumer Batch Interrupted[endpoint=" + endPointName + "] :" + e.getMessage());
-            }
         }
-    }
-
-    private void autoStartStop() {
-
     }
 
     @Override
@@ -139,27 +111,23 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
     public void handleDelivery(String consumerTag, Envelope envelope, BasicProperties properties, byte[] body) throws IOException {
         String routingKey = envelope.getRoutingKey();
         String contentType = properties.getContentType();
-        long deliveryTag = envelope.getDeliveryTag();
-        System.out.print("...");
-//        LOGGER.info("|||||||||||HANLDE_DELIVERY " + consumerTag + "||||||||||||||");
-        if (doConsume) {
+        deliveryTag = envelope.getDeliveryTag();
+        String msg = new String(body, "UTF-8");
+        if (timeConsume() && doConsume) {
+            System.out.print("...");
             consume(body);
+            channel.basicAck(deliveryTag, false);
             System.out.println("<<<|" + (new String(body, "UTF-8")) + "|");
         } else {
-            String msg = new String(body, "UTF-8");
-            msgList.add(msg);
-            System.out.println(">>>|" + msg + "|");
+            waitForCondition();
         }
-//        LOGGER.info("ROUTING_KEY:" + routingKey + " ContentType:" + contentType + " DELIVERYTAG:" + deliveryTag);
-        //channel.basicAck(deliveryTag, false);
     }
 
-    public boolean timeForConsume() {
+    public boolean timeConsume() {
         final Calendar now = Calendar.getInstance();
-        int hourOfDay = now.get(Calendar.MINUTE) % 2; //TODO: remove this line 
-        //int hourOfDay = now.get(Calendar.HOUR_OF_DAY); //TODO: have to uncomment 
-        return hourOfDay == 0;
-        //return (hourOfDay >= startTime || hourOfDay < endTime);//TODO: have to uncommnt
+        int hourOfDay = now.get(Calendar.HOUR_OF_DAY); //TODO: have to uncomment 
+        System.out.println("[hourOfDay:" + hourOfDay + "] >= [STARTTIME:" + startTime + "] && [hourOfDay:" + hourOfDay + "] < [ENDTIME:" + endTime + "]");
+        return (hourOfDay >= startTime && hourOfDay < endTime);//TODO: have to uncommnt
     }
 
     public abstract void consume(byte[] data) throws IOException;
@@ -167,62 +135,27 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
     public abstract void consume(List<String> data) throws IOException;
 
     public void pause() {
-        try {
-            LOGGER.info("<<<<<<<<<<<<<<<<<<<<<<<<" + consumerTag + ">>>>>>>>>>>>>>>>>>>>>>>>>>");
-            LOGGER.info("STATUS:pause DETAIL:pause queue consumee.");
-            channel.basicCancel(consumerTag);
-        } catch (IOException ex) {
-            java.util.logging.Logger.getLogger(RabbitConsumer.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        doConsume = false;
     }
 
-    private void checkForPause() {
-        if (doConsume != timeForConsume()) {
-            doConsume = !doConsume;
-            LOGGER.info("METHOD:rabbitConsumer STATUS:run TIME:" + startTime + " DOCONSUME:" + doConsume);
-        }
-        LOGGER.info(">>>>CHANNEL IS " + (channel.isOpen() ? "OPEN" : "CLOSE ") + " FLOWBLOCKED:" + channel.flowBlocked());
-        if (!doConsume && channel.flowBlocked()) {
-            System.out.println(">>>>CHANNEL IS OPEN :");
-            this.pause();
+    private void waitForCondition() {
+        try {
+            while (!timeConsume()) {
+                Thread.sleep(5000);
+            }
+            channel.basicAck(deliveryTag, false);
+        } catch (InterruptedException | IOException ex) {
+            LOGGER.error("error in thread sleep " + ex.getMessage());
         }
     }
 
     public void resume() {
-//            System.out.println("=================A=================BASIC RECOVER " + endPointName);
-//            connection = factory.newConnection();
-//            channel = connection.createChannel();
-//            Map<String, Object> args = new HashMap<String, Object>();
-//            args.put("x-max-priority", 7);
-//            channel.queueDeclare(this.endPointName, true, false, false, args);
-//            channel.basicQos(50);
-//            System.out.println("----------------> this start");
-
-//channel.basicRecover();
-//channel = null;
-//            consumerTag = channel.basicConsume(endPointName, true, this);
-//channel.basicRecover();
-    }
-
-    public void stop() {
         try {
-            doConsume = false;
-            connection.close();
-            //consumer.stop();
-//            channel.abort();
-//            channel.close();
-            System.out.println(consumerTag);
-            System.out.println("====================STOPING====================");
-            System.out.println("====================STOPING====================");
-            //channel.basicCancel(consumerTag);
-            //Thread.sleep(30000);
-            //channel.basicRecover();
-            //LOGGER.info(">>>>CHANNEL IS " + (channel.isOpen() ? "OPEN" : "CLOSE ") + " FLOWBLOCKED:" + channel.flowBlocked());
-            //LOGGER.info(">>>>>>>>>" + consumerTag + "<<<<<<<<<");
-            //System.out.println("=================B=================BASIC RECOVER");
-
+            doConsume = true;
+            channel.basicAck(deliveryTag, false);
         } catch (IOException ex) {
             java.util.logging.Logger.getLogger(RabbitConsumer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
+
 }

@@ -11,9 +11,7 @@ import com.jeus.server.rabbit.common.quebbit.RabbitConfig;
 import com.jeus.server.rabbit.common.quebbit.RabbitConsumer;
 import com.jeus.server.rabbit.common.quebbit.RabbitProducer;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.*;
- 
 
 /**
  * TODO Explain this class
@@ -50,19 +48,14 @@ public class ConsumerTest1 extends RabbitConsumer implements ShutdownAware {
 
     //private static final Logger LOGGER = Logger.getLogger(ConsumerTest1.class);
     //final ExecutorService wsExecutorService;
-    final int startTime;
-    final int endTime;
     final RabbitProducer self;
 
     volatile int runningJobs = 0;
     volatile boolean shutdown = false;
 
     public ConsumerTest1(RabbitConfig config, int workersCount, RabbitProducer self, int startTime, int endTime) {
-        super(config, workersCount, 0, startTime, endTime);
+        super(config, workersCount, 5, startTime, endTime);
         this.self = self;
-        this.startTime = startTime;
-        this.endTime = endTime;
-//        wsExecutorService = Executors.newFixedThreadPool(workersCount + (workersCount / 2));
         final long checkPeriodMilliSec = 5 * 60 * 1000;
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -71,45 +64,26 @@ public class ConsumerTest1 extends RabbitConsumer implements ShutdownAware {
             }
         }, checkPeriodMilliSec, checkPeriodMilliSec);
     }
-
+    
     public void callRouteCallBack(String reference) {
 
     }
 
     @Override
     public void consume(byte[] bytes) {
-        try {
             if (shutdown) {
                 System.out.println(">>SHUTDOWN");
                 this.self.submit(bytes, Priority.HIGH);
                 return;
             }
-            String msg = new String(bytes, "UTF-8");
-            if (msg.equals("STOP")) {
-                System.out.println("====================STOPING====================");
-                System.out.println("====================STOPING====================");
-                stop();
-            }
-        } catch (UnsupportedEncodingException ex) {
-            System.out.println(">>CONSUMER EXCEPTION " + ex.getMessage());
-        }
     }
 
     @Override
     public void onShutdown() {
-        super.stop();
+        this.pause();
         shutdown = true;
         final long shutdownWaitStartTime = System.currentTimeMillis();
         System.out.println(">>>SHUTDOWN");
-        //TODO: shutdown have to implement.
-//        wsExecutorService.shutdown();
-//        while ((System.currentTimeMillis() - shutdownWaitStartTime < (90 * 1000)) && !wsExecutorService.isTerminated()) {
-//            try {
-//                Thread.sleep(1000);
-//            } catch (InterruptedException e) {
-//                System.out.println(">>CONSUMER EXCEPTION " + e.getMessage());
-//            }
-//        }
 
         /**
          * do this while to all running job done or 1:30 Minute
