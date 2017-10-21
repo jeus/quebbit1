@@ -21,17 +21,13 @@ public class ProducerTest1 implements Runnable {
 
     @Override
     public void run() {
-        int pro = 100;
+        int pro = 10;
         for (int i = 0; i < pro; i++) {
             String msg = "*" + i + "*";
             byte[] bytes = msg.getBytes(Charset.forName("UTF-8"));
             producer.submit(bytes);
             System.out.println(">>PRODUCE " + msg);
         }
-        String msg = "STOP";
-        byte[] bytes = msg.getBytes(Charset.forName("UTF-8"));
-        producer.submit(bytes);
-        System.out.println(">>PRODUCE %%%%%%%%%%%%%%%%%%%%%%%%%%%%" + msg + "%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
 
         for (int i = 0; i < pro; i++) {
             String msg1 = "*" + i + "*";
@@ -39,6 +35,5 @@ public class ProducerTest1 implements Runnable {
             producer.submit(bytes1);
             System.out.println(">>PRODUCE " + msg1);
         }
-        System.out.println(">>STOP PRODUCER");
     }
 }

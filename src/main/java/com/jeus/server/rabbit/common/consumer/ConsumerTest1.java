@@ -19,7 +19,6 @@ import java.util.*;
 enum MessageType {
     MO(1), MT(2);
     public int code;
-
     MessageType(int code) {
         this.code = code;
     }

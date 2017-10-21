@@ -61,12 +61,7 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
         final List<String> messages = new ArrayList<String>();
         if (!batch) {
             try {
-                //TODO: have to returtn if command
-//                for (int consumerId = 0; consumerId < _consumersPerThread.get(); ++consumerId) {
-                System.out.println("-----------------------------> PER THREAD" + _consumersPerThread.get());
                 consumerTag = channel.basicConsume(endPointName, false, this);
-                LOGGER.info(">>>>>>>>>" + consumerTag + "<<<<<<<<<");
-//                }
             } catch (IOException e) {
                 LOGGER.error("RabbitConsumer Problem[endpoint=" + endPointName + "] : " + e.getMessage());
             }
@@ -75,22 +70,21 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
 
     @Override
     public void handleConsumeOk(String consumerTag) {
-        LOGGER.info("|||||||||||HANDLE_ConsumeOk" + consumerTag + "|||||||||||");
+        LOGGER.info("STATUS:consume_ok CONSTAG:" + consumerTag);
     }
 
     @Override
     public void handleCancelOk(String consumerTag) {
-        LOGGER.info("|||||||||||HANDLE_CancelOk " + consumerTag + "||||||||||||");
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public void handleCancel(String consumerTag) throws IOException {
-        LOGGER.info("|||||||||||HANDLE_Cancel " + consumerTag + "||||||||||||");
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
-        LOGGER.info("|||||||||||HANDLE_ShutdownSignal " + consumerTag + "||||||||||||||???????????????????????????");
         RabbitProducer producer;
         producer = new RabbitProducer(config);
         for (Object object : msgList) {
@@ -104,30 +98,27 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
 
     @Override
     public void handleRecoverOk(String consumerTag) {
-        LOGGER.info("|||||||||||HANDLE_RecoverOk " + consumerTag + "||||||||||||||");
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public void handleDelivery(String consumerTag, Envelope envelope, BasicProperties properties, byte[] body) throws IOException {
-        String routingKey = envelope.getRoutingKey();
-        String contentType = properties.getContentType();
         deliveryTag = envelope.getDeliveryTag();
-        String msg = new String(body, "UTF-8");
         if (timeConsume() && doConsume) {
             System.out.print("...");
             consume(body);
             channel.basicAck(deliveryTag, false);
             System.out.println("<<<|" + (new String(body, "UTF-8")) + "|");
         } else {
+            channel.basicRecover();
             waitForCondition();
         }
     }
 
     public boolean timeConsume() {
         final Calendar now = Calendar.getInstance();
-        int hourOfDay = now.get(Calendar.HOUR_OF_DAY); //TODO: have to uncomment 
-        System.out.println("[hourOfDay:" + hourOfDay + "] >= [STARTTIME:" + startTime + "] && [hourOfDay:" + hourOfDay + "] < [ENDTIME:" + endTime + "]");
-        return (hourOfDay >= startTime && hourOfDay < endTime);//TODO: have to uncommnt
+        int hourOfDay = now.get(Calendar.HOUR_OF_DAY);
+        return (hourOfDay >= startTime && hourOfDay < endTime);
     }
 
     public abstract void consume(byte[] data) throws IOException;
@@ -143,6 +134,7 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
             while (!timeConsume()) {
                 Thread.sleep(5000);
             }
+            LOGGER.info("[S] START CONSUMING ");
             channel.basicAck(deliveryTag, false);
         } catch (InterruptedException | IOException ex) {
             LOGGER.error("error in thread sleep " + ex.getMessage());
@@ -154,7 +146,7 @@ public abstract class RabbitConsumer extends RabbitDao implements Runnable, Cons
             doConsume = true;
             channel.basicAck(deliveryTag, false);
         } catch (IOException ex) {
-            java.util.logging.Logger.getLogger(RabbitConsumer.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.error("error in ack channel " + ex.getMessage());
         }
     }
 
